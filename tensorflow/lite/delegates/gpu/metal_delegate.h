@@ -18,8 +18,6 @@ limitations under the License.
 
 #import <Metal/Metal.h>
 
-#include <stdint.h>
-
 #include "tensorflow/lite/c/c_api_internal.h"
 
 // Creates a new delegate instance that need to be destroyed with
@@ -35,8 +33,10 @@ struct GpuDelegateOptions {
     // additional CPU resources.
     kActive,
     // Useful when the output is used with GPU pipeline then or if external
-    // command encoder is set
+    // command encoder is set.
     kDoNotWait,
+    // Tries to avoid GPU sleep mode.
+    kAggressive,
   };
   WaitType wait_type;
 };
@@ -46,22 +46,18 @@ struct GpuDelegateOptions {
 // When `options` is set to `nullptr`, the following default values are used:
 // .precision_loss_allowed = false,
 // .wait_type = kPassive,
-TfLiteDelegate* NewGpuDelegate(const GpuDelegateOptions* options);
+TfLiteDelegate* TFLGpuDelegateCreate(const GpuDelegateOptions* options);
 
-// Destroys a delegate created with `NewGpuDelegate` call.
-void DeleteGpuDelegate(TfLiteDelegate* delegate);
+// Destroys a delegate created with `TFLGpuDelegateCreate` call.
+void TFLGpuDelegateDelete(TfLiteDelegate* delegate);
 
 // Binds Metal buffer to an input or an output tensor in the initialized
 // delegate.  Bound buffer should have sufficient storage to accommodate all
 // elements of a tensor.  Returns non-zero on success, or zero otherwise.
 //
 // *** Must be called *before* `Interpreter::ModifyGraphWithDelegate`. ***
-bool BindMetalBufferToTensor(TfLiteDelegate* delegate, int tensor_index,
-                             id<MTLBuffer> metal_buffer);
-
-// Binds user-defined MTLComputeCommandEncoder. The delegate puts all GPU tasks
-// into this encoder instead of the internal encoder.
-bool SetCommandEncoder(TfLiteDelegate* delegate,
-                       id<MTLComputeCommandEncoder> encoder);
+bool TFLGpuDelegateBindMetalBufferToTensor(TfLiteDelegate* delegate,
+                                           int tensor_index,
+                                           id<MTLBuffer> metal_buffer);
 
 #endif  // TENSORFLOW_LITE_DELEGATES_GPU_METAL_DELEGATE_H_

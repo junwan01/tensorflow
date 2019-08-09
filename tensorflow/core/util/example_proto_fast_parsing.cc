@@ -852,8 +852,8 @@ Status FastParseSerializedExample(
         break;
       }
       case DT_STRING: {
-        std::copy_n(in.flat<string>().data(), num_elements,
-                    out.flat<string>().data() + offset);
+        std::copy_n(in.flat<tstring>().data(), num_elements,
+                    out.flat<tstring>().data() + offset);
         break;
       }
       default:
@@ -1037,6 +1037,7 @@ Status FastParseExample(const Config& config,
                     "around 2^32 entries in your config.";
     hasher.seed++;
     config_index.Clear(config_size);
+    ok = true;
   }
   if (!ok) {
     return errors::Internal(
@@ -1193,7 +1194,7 @@ Status FastParseExample(const Config& config,
         }
         case DT_STRING: {
           std::move(buffer.bytes_list.begin(), buffer.bytes_list.end(),
-                    values->flat<string>().data() + offset);
+                    values->flat<tstring>().data() + offset);
           break;
         }
         default:
@@ -1272,8 +1273,8 @@ Status FastParseExample(const Config& config,
   return Status::OK();
 }
 
-Status FastParseSingleExample(const Config& config, const string& serialized,
-                              Result* result) {
+Status FastParseSingleExample(const Config& config,
+                              absl::string_view serialized, Result* result) {
   DCHECK(result != nullptr);
   // Check config so we can safely CHECK(false) in switches on config.*.dtype
   for (auto& c : config.sparse) {
@@ -1309,6 +1310,7 @@ Status FastParseSingleExample(const Config& config, const string& serialized,
                     "around 2^32 entries in your config.";
     hasher.seed++;
     config_index.Clear(config_size);
+    ok = true;
   }
   if (!ok) {
     return errors::Internal(
@@ -1576,7 +1578,7 @@ Status FastParseSingleExample(const Config& config, const string& serialized,
         case DT_STRING: {
           *out = Tensor(out_dtype, out_shape);
           CopyOrMoveBlock(bytes_list.begin(), bytes_list.end(),
-                          out->flat<string>().data());
+                          out->flat<tstring>().data());
           break;
         }
         default:
@@ -2077,7 +2079,7 @@ Status FastParseSequenceExample(
     int64* out_int64 = nullptr;
     switch (dtype) {
       case DT_STRING:
-        out_bytes = context_result->dense_values[t].flat<string>().data();
+        out_bytes = context_result->dense_values[t].flat<tstring>().data();
         break;
       case DT_FLOAT:
         out_float = context_result->dense_values[t].flat<float>().data();
@@ -2111,7 +2113,7 @@ Status FastParseSequenceExample(
         size_t num = 0;
         switch (dtype) {
           case DT_STRING:
-            in_bytes = c.default_value.flat<string>().data();
+            in_bytes = c.default_value.flat<tstring>().data();
             num = c.default_value.NumElements();
             for (int p = 0; p < num; p++) {
               *out_bytes++ = *in_bytes++;
@@ -2188,7 +2190,7 @@ Status FastParseSequenceExample(
     int64* out_int64 = nullptr;
     switch (dtype) {
       case DT_STRING:
-        out_bytes = context_result->sparse_values[t].flat<string>().data();
+        out_bytes = context_result->sparse_values[t].flat<tstring>().data();
         break;
       case DT_FLOAT:
         out_float = context_result->sparse_values[t].flat<float>().data();
@@ -2279,7 +2281,7 @@ Status FastParseSequenceExample(
     int64* out_int64 = nullptr;
     switch (dtype) {
       case DT_STRING:
-        out_bytes = feature_list_result->dense_values[t].flat<string>().data();
+        out_bytes = feature_list_result->dense_values[t].flat<tstring>().data();
         break;
       case DT_FLOAT:
         out_float = feature_list_result->dense_values[t].flat<float>().data();
@@ -2390,7 +2392,8 @@ Status FastParseSequenceExample(
     int64* out_int64 = nullptr;
     switch (dtype) {
       case DT_STRING:
-        out_bytes = feature_list_result->sparse_values[t].flat<string>().data();
+        out_bytes =
+            feature_list_result->sparse_values[t].flat<tstring>().data();
         break;
       case DT_FLOAT:
         out_float = feature_list_result->sparse_values[t].flat<float>().data();

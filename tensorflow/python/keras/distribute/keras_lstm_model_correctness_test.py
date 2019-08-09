@@ -19,24 +19,41 @@ from __future__ import print_function
 
 import numpy as np
 from tensorflow.python import keras
+from tensorflow.python import tf2
 from tensorflow.python.distribute import combinations
+from tensorflow.python.eager import context
 from tensorflow.python.eager import test
 from tensorflow.python.keras.distribute import keras_correctness_test_base
-from tensorflow.python.training import gradient_descent
+from tensorflow.python.keras.layers import recurrent as rnn_v1
+from tensorflow.python.keras.layers import recurrent_v2 as rnn_v2
+from tensorflow.python.keras.optimizer_v2 import gradient_descent as gradient_descent_keras
 
 
 class DistributionStrategyLstmModelCorrectnessTest(
-    keras_correctness_test_base.
-    TestDistributionStrategyEmbeddingModelCorrectnessBase):
+    keras_correctness_test_base
+    .TestDistributionStrategyEmbeddingModelCorrectnessBase):
 
-  def get_model(self, max_words=10, initial_weights=None, distribution=None):
+  def get_model(self,
+                max_words=10,
+                initial_weights=None,
+                distribution=None,
+                experimental_run_tf_function=None,
+                input_shapes=None):
+    del input_shapes
+
+    if tf2.enabled():
+      if not context.executing_eagerly():
+        self.skipTest("LSTM v2 and legacy graph mode don't work together.")
+      lstm = rnn_v2.LSTM
+    else:
+      lstm = rnn_v1.LSTM
+
     with keras_correctness_test_base.MaybeDistributionScope(distribution):
       word_ids = keras.layers.Input(
           shape=(max_words,), dtype=np.int32, name='words')
-      word_embed = keras.layers.Embedding(input_dim=20,
-                                          output_dim=10)(word_ids)
-      lstm_embed = keras.layers.LSTM(units=4,
-                                     return_sequences=False)(word_embed)
+      word_embed = keras.layers.Embedding(input_dim=20, output_dim=10)(word_ids)
+      lstm_embed = lstm(units=4, return_sequences=False)(
+          word_embed)
 
       preds = keras.layers.Dense(2, activation='softmax')(lstm_embed)
       model = keras.Model(inputs=[word_ids], outputs=[preds])
@@ -44,20 +61,22 @@ class DistributionStrategyLstmModelCorrectnessTest(
       if initial_weights:
         model.set_weights(initial_weights)
 
+      optimizer_fn = gradient_descent_keras.SGD
+
       model.compile(
-          optimizer=gradient_descent.GradientDescentOptimizer(
-              learning_rate=0.1),
+          optimizer=optimizer_fn(learning_rate=0.1),
           loss='sparse_categorical_crossentropy',
-          metrics=['sparse_categorical_accuracy'])
+          metrics=['sparse_categorical_accuracy'],
+          experimental_run_tf_function=experimental_run_tf_function)
     return model
 
-  @combinations.generate(keras_correctness_test_base.
-                         test_combinations_for_embedding_model())
-  def test_lstm_model_correctness(self,
-                                  distribution,
-                                  use_numpy,
-                                  use_validation_data):
-    self.run_correctness_test(distribution, use_numpy, use_validation_data)
+  @combinations.generate(
+      keras_correctness_test_base.test_combinations_for_embedding_model())
+  def test_lstm_model_correctness(self, distribution, use_numpy,
+                                  use_validation_data,
+                                  experimental_run_tf_function):
+    self.run_correctness_test(distribution, use_numpy, use_validation_data,
+                              experimental_run_tf_function)
 
 
 if __name__ == '__main__':

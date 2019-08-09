@@ -23,7 +23,6 @@ limitations under the License.
 #include "tensorflow/core/platform/logging.h"
 #include "tensorflow/core/platform/mem.h"
 #include "tensorflow/core/platform/types.h"
-#include "tensorflow/core/util/util.h"
 
 namespace tensorflow {
 
@@ -72,10 +71,11 @@ class GatherNdOp : public OpKernel {
 //
 // Same for the GPU kernel.
 TF_CALL_ALL_TYPES(REGISTER_GATHER_ND_CPU);
+TF_CALL_QUANTIZED_TYPES(REGISTER_GATHER_ND_CPU);
 
 #undef REGISTER_GATHER_ND_CPU
 
-#if GOOGLE_CUDA
+#if GOOGLE_CUDA || TENSORFLOW_USE_ROCM
 // Forward declarations of the functor specializations for GPU.
 namespace functor {
 #define DECLARE_GPU_SPECS_INDEX_NDIM(T, Index, NDIM)          \
@@ -123,7 +123,7 @@ TF_CALL_complex128(REGISTER_GATHER_ND_GPU);
 
 #undef REGISTER_GATHER_ND_GPU
 
-#endif  // GOOGLE_CUDA
+#endif  // GOOGLE_CUDA || TENSORFLOW_USE_ROCM
 
 #undef REGISTER_GATHER_ND_ALL_INDICES
 #undef REGISTER_GATHER_ND_FULL

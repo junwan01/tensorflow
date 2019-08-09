@@ -295,6 +295,8 @@ Status ConvertGraphToXla(std::unique_ptr<Graph> graph,
   compiler_options.flib_def = &graph->flib_def();
   compiler_options.graph_def_version = graph->versions().producer();
   compiler_options.allow_cpu_custom_calls = true;
+  compiler_options.custom_fake_quant_op_calls =
+      config.conversion_options().custom_fake_quant_op_calls();
   XlaCompiler compiler(compiler_options);
 
   XlaCompiler::CompilationResult result;
@@ -382,8 +384,8 @@ Status InitGraph(const GraphDef& graph_def, const tf2xla::Config& config,
   TF_RETURN_IF_ERROR(AddDefaultAttrsToGraphDef(
       &second_copy_def, *g->op_registry(), /*node_offset=*/0));
 
-  TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(GraphConstructorOptions(),
-                                            second_copy_def, g.get()));
+  TF_RETURN_IF_ERROR(ConvertGraphDefToGraph(
+      GraphConstructorOptions(), std::move(second_copy_def), g.get()));
   TF_RETURN_IF_ERROR(RewriteAndPruneGraph(g.get(), config, feed_remapping));
 
   // Functionalize control flow.

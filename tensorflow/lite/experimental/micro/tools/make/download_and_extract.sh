@@ -78,17 +78,31 @@ download_and_extract() {
   local tempdir=$(mktemp -d)
   local tempdir2=$(mktemp -d)
   local tempfile=${tempdir}/temp_file
+  local curl_retries=3
 
   echo "downloading ${url}" >&2
   mkdir -p "${dir}"
-  curl -Ls "${url}" > ${tempfile}
-  # Two spaces are needed as separator below.
-  echo "${expected_md5}  ${tempfile}" > ${tempdir}/md5.txt
-  MD5_STATUS=0
-  md5sum --check ${tempdir}/md5.txt 1>/dev/null 2>/dev/null || MD5_STATUS=$? && true
-  if [ ${MD5_STATUS} -ne 0 ]; then
-    echo "Checksum error for '${url}'. Expected ${expected_md5} but found"
-    echo `md5sum ${tempfile}`
+  # We've been seeing occasional 56 errors from valid URLs, so set up a retry
+  # loop to attempt to recover from them.
+  for (( i=1; i<=$curl_retries; ++i ))
+  do  
+    CURL_RESULT=$(curl -Ls --retry 5 "${url}" > ${tempfile} || true)
+    if [[ $CURL_RESULT -eq 0 ]]
+    then
+      break
+    fi
+    if [[ ( $CURL_RESULT -ne 56 ) || ( $i -eq $curl_retries ) ]]
+    then
+      echo "Error $CURL_RESULT downloading '${url}'"
+      exit 1
+    fi
+    sleep 2
+  done
+
+  # Check that the file was downloaded correctly using a checksum.
+  DOWNLOADED_MD5=$(openssl dgst -md5 ${tempfile} | sed 's/.* //g')
+  if [ ${expected_md5} != ${DOWNLOADED_MD5} ]; then
+    echo "Checksum error for '${url}'. Expected ${expected_md5} but found ${DOWNLOADED_MD5}"
     exit 1
   fi
   
